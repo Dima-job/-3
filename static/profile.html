@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Профиль</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: white; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 500px; }
+        .box { background: #1e1e1e; padding: 20px; border-radius: 12px; border: 1px solid #333; margin-top: 15px; position: relative; }
+        .stats-bar { display: flex; gap: 10px; margin-top: 15px; }
+        .stat-item { flex: 1; background: #252525; padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .stat-item:hover { background: #333; }
+        .stat-item b { display: block; font-size: 18px; color: #007bff; }
+        .btn-blue { background: #007bff; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; }
+        .btn-edit { background: #444; color: #ccc; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; height: fit-content; }
+        .btn-logout { background: #dc3545; color: white; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer; font-size: 12px; margin-top: 10px; font-weight: bold; }
+        .tabs { display: flex; gap: 10px; margin: 20px 0; }
+        .tab-btn { flex: 1; padding: 10px; background: #333; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        .tab-btn.active { background: #007bff; }
+        .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #222; border: 2px solid #007bff; padding: 20px; border-radius: 15px; z-index: 2000; width: 400px; max-height: 80vh; overflow-y: auto;}
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1999; }
+        .hidden { display: none !important; }
+        .tag { background: #007bff33; color: #4da3ff; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-right: 5px; display: inline-block; }
+        .comments-section { margin-top: 15px; border-top: 1px solid #333; padding-top: 10px; width: 100%; }
+        .comment-toggle { color: #888; cursor: pointer; font-size: 13px; font-weight: bold; display: block; margin-bottom: 5px; }
+        .comment-item { background: #252525; padding: 8px 12px; border-radius: 12px; margin-bottom: 5px; font-size: 13px; color: #ddd; }
+        .comment-item b { color: #4da3ff; display: block; font-size: 12px; }
+        .comment-input-area { display: flex; gap: 8px; margin-top: 10px; }
+        .comment-input-area input { flex: 1; background: #000; color: white; border: 1px solid #444; padding: 8px 12px; border-radius: 18px; outline: none; }
+    </style>
+</head>
+<body>
+    <div id="modal-overlay" class="overlay hidden" onclick="closeAllModals()"></div>
+
+    <div id="list-modal" class="modal hidden">
+        <h3 id="list-title" style="margin-top:0; color:#007bff;">Список</h3>
+        <div id="users-list-container" style="margin-bottom:15px;"></div>
+        <button class="btn-blue" style="background:#444;" onclick="closeAllModals()">Закрыть</button>
+    </div>
+
+    <div id="edit-modal" class="modal hidden">
+        <h3 style="margin-top:0;">Редактирование</h3>
+        <input type="text" id="edit-t" placeholder="Заголовок" style="width:100%; padding:10px; margin-bottom:10px; background:#000; color:white; border:1px solid #444; box-sizing:border-box;">
+        <input type="text" id="edit-tag" placeholder="Теги (через запятую)" style="width:100%; padding:10px; margin-bottom:10px; background:#000; color:white; border:1px solid #444; box-sizing:border-box;">
+        <textarea id="edit-c" style="width:100%; height:100px; background:#000; color:white; border:1px solid #444; padding:10px; box-sizing:border-box;"></textarea>
+        <label><input type="checkbox" id="edit-p"> Приватный пост 🔒</label>
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="btn-blue" onclick="saveEdit()">Сохранить</button>
+            <button class="btn-blue" style="background:red;" onclick="deletePost()">Удалить</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <a href="/" style="color:#007bff; text-decoration:none; font-weight:bold;">← На главную ленту</a>
+
+        <div id="auth-zone" class="box hidden">
+            <h2>Вход / Регистрация</h2>
+            <input type="text" id="ui" placeholder="Логин" style="width:100%; padding:10px; margin-bottom:10px; background:#000; color:white; border:1px solid #444; box-sizing:border-box;">
+            <input type="password" id="pi" placeholder="Пароль" style="width:100%; padding:10px; margin-bottom:10px; background:#000; color:white; border:1px solid #444; box-sizing:border-box;">
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-blue" onclick="doLogin()">Войти</button>
+                <button class="btn-blue" style="background: #28a745;" onclick="doRegister()">Регистрация</button>
+            </div>
+        </div>
+
+        <div id="prof-zone" class="hidden">
+            <div id="req-panel" class="box hidden" style="border-color: orange;">
+                <h4 style="color:orange; margin:0 0 10px 0;">Заявки на доступ 🔑</h4>
+                <div id="req-list"></div>
+            </div>
+
+            <div class="box" style="text-align:center;">
+                <h1 id="p-name" style="margin:0;">...</h1>
+                <button id="btn-logout" class="btn-logout hidden" onclick="doLogout()">Выйти из аккаунта</button>
+                <div class="stats-bar">
+                    <div class="stat-item" onclick="showList('followers')">Подписчики <b id="c-ers">0</b></div>
+                    <div class="stat-item" onclick="showList('following')">Подписки <b id="c-ing">0</b></div>
+                </div>
+                <button id="btn-follow" class="btn-blue hidden" style="margin-top:15px;" onclick="follow()"></button>
+            </div>
+
+            <div id="create-box" class="box hidden" style="border: 1px solid #007bff;">
+                <h4 style="margin:0;">Новый пост</h4>
+                <input type="text" id="nt" placeholder="Заголовок" style="width:100%; padding:10px; margin-top:10px; background:#000; color:white; border:1px solid #444; box-sizing:border-box;">
+                <input type="text" id="ntag" placeholder="Теги (через запятую)" style="width:100%; padding:10px; background:#000; color:white; border:1px solid #444; box-sizing:border-box; margin-top: 10px;">
+                <textarea id="nc" placeholder="Текст поста..." style="width:100%; height:80px; background:#000; color:white; border:1px solid #444; padding:10px; box-sizing:border-box; margin-bottom:10px; margin-top: 10px;"></textarea>
+                <label><input type="checkbox" id="np"> Приватный</label>
+                <button class="btn-blue" style="margin-top:10px;" onclick="addPost()">Опубликовать</button>
+            </div>
+
+            <div class="tabs" id="profile-tabs">
+                <button id="t-my" class="tab-btn active" onclick="setTab('my')">Мои посты</button>
+                <button id="t-liked" class="tab-btn" onclick="setTab('liked')">Понравилось ❤️</button>
+            </div>
+            <div id="posts-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const userUrl = params.get('user');
+        let me = localStorage.getItem('currentUser');
+        let currentTab = 'my';
+        let currentEditId = null;
+        let profileData = null;
+
+        async function doLogin() {
+            const u = document.getElementById('ui').value.trim(), p = document.getElementById('pi').value;
+            const res = await fetch('/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: u, password: p}) });
+            if (res.ok) { localStorage.setItem('currentUser', u); location.href = `/static/profile.html?user=${u}`; }
+            else alert("Ошибка входа!");
+        }
+
+        async function doRegister() {
+            const u = document.getElementById('ui').value.trim(), p = document.getElementById('pi').value;
+            if (!u || !p) return alert("Заполните поля!");
+            const res = await fetch('/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: u, password: p}) });
+            if (res.ok) { localStorage.setItem('currentUser', u); location.href = `/static/profile.html?user=${u}`; }
+            else alert("Ошибка регистрации!");
+        }
+
+        function doLogout() {
+            if (confirm("Выйти?")) { localStorage.removeItem('currentUser'); location.href = '/'; }
+        }
+
+        async function addPost() {
+            const payload = { author: me, title: document.getElementById('nt').value, content: document.getElementById('nc').value, private: document.getElementById('np').checked, tags: document.getElementById('ntag').value };
+            await fetch('/api/create_post', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            location.reload();
+        }
+
+        function showList(type) {
+            if (!profileData) return;
+            const list = type === 'followers' ? profileData.followers : profileData.following;
+            document.getElementById('list-title').innerText = type === 'followers' ? 'Подписчики' : 'Подписки';
+            const container = document.getElementById('users-list-container');
+            container.innerHTML = list.map(u => `<a href="/static/profile.html?user=${u}" style="display:block; padding:10px; border-bottom:1px solid #333; color:white; text-decoration:none;">👤 ${u}</a>`).join('') || '<p style="color:#888; text-align:center;">Пусто</p>';
+            document.getElementById('list-modal').classList.remove('hidden');
+            document.getElementById('modal-overlay').classList.remove('hidden');
+        }
+
+        function openEdit(id, title, tagsStr, content, isPrivate) {
+            currentEditId = id;
+            document.getElementById('edit-t').value = title;
+            document.getElementById('edit-tag').value = tagsStr;
+            document.getElementById('edit-c').value = content;
+            document.getElementById('edit-p').checked = isPrivate;
+            document.getElementById('edit-modal').classList.remove('hidden');
+            document.getElementById('modal-overlay').classList.remove('hidden');
+        }
+
+        function closeAllModals() { document.querySelectorAll('.modal, .overlay').forEach(el => el.classList.add('hidden')); }
+
+        async function saveEdit() {
+            const payload = { author: me, title: document.getElementById('edit-t').value, content: document.getElementById('edit-c').value, private: document.getElementById('edit-p').checked, tags: document.getElementById('edit-tag').value };
+            await fetch(`/api/update_post/${currentEditId}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+            location.reload();
+        }
+
+        async function deletePost() {
+            if(!confirm("Удалить?")) return;
+            await fetch(`/api/delete_post/${currentEditId}?author=${me}`, { method: 'DELETE' });
+            location.reload();
+        }
+
+        async function approve(u, pid) { await fetch(`/api/approve_access?post_id=${pid}&target_user=${u}&author=${me}`, {method: 'POST'}); load(); }
+        async function follow() { await fetch(`/api/follow?target=${userUrl}&follower=${me}`, {method: 'POST'}); load(); }
+        async function likePost(id) { if (!me) return; await fetch(`/api/like?post_id=${id}&username=${me}`, { method: 'POST' }); load(); }
+        
+        function toggleComments(id) { document.getElementById(`comm-block-${id}`)?.classList.toggle('hidden'); }
+
+        async function sendComment(postId) {
+            const input = document.getElementById(`comm-input-${postId}`);
+            const text = input.value.trim();
+            if (!text) return;
+            const res = await fetch('/api/comment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: postId, username: me, text: text }) });
+            if (res.ok) { input.value = ''; load(); }
+        }
+
+        function setTab(t) { 
+            currentTab = t; 
+            document.getElementById('t-my').classList.toggle('active', t === 'my');
+            document.getElementById('t-liked').classList.toggle('active', t === 'liked');
+            load(); 
+        }
+
+        async function load() {
+            const target = (userUrl || me)?.trim();
+            if (!target) { document.getElementById('auth-zone').classList.remove('hidden'); return; }
+            document.getElementById('prof-zone').classList.remove('hidden');
+
+            const isMy = (me === target);
+            document.getElementById('profile-tabs').classList.toggle('hidden', !isMy);
+            document.getElementById('btn-logout').classList.toggle('hidden', !isMy);
+            if (!isMy) currentTab = 'my';
+
+            const res = await fetch(`/api/profile/${target}?viewer=${me || ''}`);
+            profileData = await res.json();
+            document.getElementById('p-name').innerText = profileData.username;
+            document.getElementById('c-ers').innerText = profileData.followers.length;
+            document.getElementById('c-ing').innerText = profileData.following.length;
+
+            if (me && me !== target) {
+                const btn = document.getElementById('btn-follow');
+                btn.classList.remove('hidden');
+                btn.innerText = profileData.followers.includes(me) ? "Отписаться" : "Подписаться";
+            }
+
+            if (isMy) {
+                document.getElementById('create-box').classList.remove('hidden');
+                const rRes = await fetch(`/api/my_requests?author=${me}`);
+                const reqs = await rRes.json();
+                if (reqs.length > 0) {
+                    document.getElementById('req-panel').classList.remove('hidden');
+                    document.getElementById('req-list').innerHTML = reqs.map(r => `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>${r.user} → ${r.post_title}</span><button onclick="approve('${r.user}', ${r.post_id})" style="background:green; color:white; border:none; padding:2px 10px; border-radius:4px; cursor:pointer;">ОК</button></div>`).join('');
+                } else document.getElementById('req-panel').classList.add('hidden');
+            }
+
+            const pDiv = document.getElementById('posts-list');
+            pDiv.innerHTML = '';
+            let displayPosts = (currentTab === 'my') ? profileData.posts : (await (await fetch(`/posts/public?viewer=${me}`)).json()).filter(p => p.likes?.includes(target));
+
+            displayPosts.reverse().forEach(p => {
+                if (p.is_locked) {
+                    pDiv.innerHTML += `<div class="box" style="border: 2px dashed orange;"><h4 style="margin-top:0;">${p.title}</h4><p>Контент скрыт.</p></div>`;
+                    return;
+                }
+                const isPrivate = p.private === true;
+                const showEdit = (me === p.author && currentTab === 'my');
+                
+                // Экранируем кавычки и переносы строк, чтобы не сломать JS внутри onclick
+                const safeTitle = p.title.replace(/'/g, "&#39;");
+                const safeContent = p.content.replace(/'/g, "&#39;").replace(/\n/g, "\\n");
+                
+                const editBtn = showEdit ? `<button class="btn-edit" onclick="openEdit(${p.id}, '${safeTitle}', '${(p.tags||[]).join(', ')}', '${safeContent}', ${isPrivate})">✎ Ред.</button>` : '';
+                const isLiked = p.likes?.includes(me);
+                const comms = p.comments || [];
+                
+                // Формируем HTML для тегов (если они есть)
+                const tagsHtml = (p.tags && p.tags.length > 0) 
+                    ? `<div style="margin-bottom: 10px;">${p.tags.map(t => `<span class="tag">#${t.trim()}</span>`).join('')}</div>` 
+                    : '';
+
+                pDiv.innerHTML += `
+                    <div class="box" style="${isPrivate ? 'border: 1px solid #007bff;' : ''}">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                            <h4 style="margin-top:0; margin-bottom:10px;">${p.title} ${isPrivate ? '🔒' : ''}</h4>
+                            ${editBtn}
+                        </div>
+                        ${tagsHtml}
+                        <p style="white-space: pre-wrap; margin-top:0;">${p.content}</p>
+                        <div style="margin-top:10px; border-top:1px solid #333; padding-top:10px;">
+                            <span onclick="likePost(${p.id})" style="cursor:pointer; color:${isLiked ? '#ff4757' : '#888'}">❤️ ${p.likes?.length || 0}</span>
+                        </div>
+                        <div class="comments-section">
+                            <span class="comment-toggle" onclick="toggleComments(${p.id})">💬 Комментарии (${comms.length})</span>
+                            <div id="comm-block-${p.id}" class="hidden">
+                                <div class="comment-list">${comms.map(c => `<div class="comment-item"><b>${c.user}</b>${c.text}</div>`).join('')}</div>
+                                ${me ? `<div class="comment-input-area"><input id="comm-input-${p.id}" type="text" placeholder="Написать комментарий..."><button class="btn-blue" style="width:auto; padding:8px 15px;" onclick="sendComment(${p.id})">OK</button></div>` : ''}
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        }
+        load();
+    </script>
+</body>
+</html>
